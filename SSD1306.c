@@ -1,7 +1,5 @@
 #include "SSD1306.h"
 
-#define OLED_USE_SPI1
-
 #ifdef OLED_USE_SPI1
     #define SPI1_USE
     #define SSD1306_ADDR_COLUMN_BIAS 0x00
@@ -11,6 +9,8 @@
 #elif defined(OLED_USE_I2C1)
     #define I2C1_USE
     #define SSD1306_ADDR_COLUMN_BIAS 0x02
+#else
+    #error "Choose type interface for connection OLED" 
 #endif
 
 #if defined (SPI1_USE) || defined (SPI2_USE)
