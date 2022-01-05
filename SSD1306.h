@@ -7,7 +7,7 @@
     #define ABS(x)   ((x) > 0 ? (x) : -(x))
 #endif
 
-static uint8_t SSD1306_Buffer [SSD1306_buf_size];
+uint8_t SSD1306_Buffer [SSD1306_buf_size];
 
 /**
  * @brief  SSD1306 color enumeration

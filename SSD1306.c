@@ -1,5 +1,7 @@
 #include "SSD1306.h"
 
+#define OLED_USE_SPI1
+
 #ifdef OLED_USE_SPI1
     #define SPI1_USE
     #define SSD1306_ADDR_COLUMN_BIAS 0x00
