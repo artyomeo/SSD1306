@@ -1,25 +1,45 @@
+/* This library was based on the developments of the following authors:
+ * original author:  Tilen Majerle<tilen@majerle.eu>
+ * modification for STM32f10x: Alexander Lutsai<s.lyra@ya.ru>
+ */
+
+#include <string.h>
+
 #include "fonts.h"
 
 #include "SSD1306_def.h"
 
-/* Absolute value */
 #ifndef ABS
+	/* Absolute value of number (x) */
     #define ABS(x)   ((x) > 0 ? (x) : -(x))
 #endif
 
+/* bufer of data screen */
 uint8_t SSD1306_Buffer [SSD1306_buf_size];
 
 /**
  * @brief  SSD1306 color enumeration
  */
 typedef enum {
-	SSD1306_COLOR_BLACK = 0x00, /*!< Black color, no pixel */
-	SSD1306_COLOR_WHITE = 0xFF,  /*!< Pixel is set. Color depends on LCD */
+	SSD1306_COLOR_BLACK = 0x00,		/* Black color, no pixel	 */
+	SSD1306_COLOR_WHITE = 0xFF,		/* Light color, pixel is set */
 
 	SSD1306_COLOR_ERROR = -0x01
 } SSD1306_COLOR_t;
 
-void Delay_oled (uint32_t );
+/**
+ * @brief  SSD1306 align enumeration relatively point XY (P) or Screen (S)
+ */
+typedef enum {
+	SSD1306_ALIGN_LEFT     = 0x00,	/* the text will be to the right of the specified point  */
+	SSD1306_ALIGN_RIGHT    = 0x0F,	/* the text will be to the left of the specified point	 */
+
+	SSD1306_ALIGN_CENTER_P = 0x07,	/* the text will be in the middle of the specified point */
+
+	SSD1306_ALIGN_CENTER_S = 0xF7,	/* the text will be in the middle of the OLED screen	 */
+
+	SSD1306_ALIGN_ERROR    = -0x01
+} SSD1306_ALIGN_t;
 
 void SSD1306_INIT (void);
 
@@ -35,9 +55,11 @@ char SSD1306_WriteString(char* , FontDef_t , SSD1306_COLOR_t );
 
 char SSD1306_Putc(char , FontDef_t* , SSD1306_COLOR_t );
 
-char SSD1306_Puts(char* , FontDef_t* , SSD1306_COLOR_t );
+char SSD1306_Puts(char* , FontDef_t* , SSD1306_ALIGN_t align, SSD1306_COLOR_t );
 
-void SSD1306_Putn (uint32_t , FontDef_t* , SSD1306_COLOR_t );
+void SSD1306_Putn (uint32_t , FontDef_t* , SSD1306_ALIGN_t, SSD1306_COLOR_t );
+
+uint8_t _Align_text (uint8_t width_num, SSD1306_ALIGN_t align);
 
 char* CodingCP866(char* );
 
@@ -62,3 +84,5 @@ uint8_t SSD1306_DrawFillRectangle (uint8_t , uint8_t , uint8_t , uint8_t , SSD13
 void SSD1306_FillImage(uint8_t , uint8_t , uint8_t , uint8_t , const uint8_t * , uint32_t );
 
 void OLED_init (void);
+
+void _delay_oled (uint32_t );

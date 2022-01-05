@@ -37,30 +37,30 @@ static struct {
 	uint8_t Initialized;
 } SSD1306;
 
-void Delay_oled (uint32_t count)
+void _delay_oled (uint32_t count)
 {  for(;count > 0; count--);  }
 
 void SSD1306_INIT (void)
 {   
 #if defined (SPI1_USE) || defined (SPI2_USE)
     OLED_GPIO_INIT ();
-    Delay_oled (100);
+    _delay_oled (100);
     SPI_INIT ();
 
     //запись данных, reset = 0
     RESET_Pins(OLED_PIN_RESET);
-    Delay_oled (100);
+    _delay_oled (100);
     //запись данных, reset = 1
     SET_Pins(OLED_PIN_RESET);
 #endif
     
 #if defined (I2C1_USE)
     I2C_INIT ();
-    Delay_oled (100);
+    _delay_oled (100);
     OLED_GPIO_INIT ();
 #endif
     
-    Delay_oled (100);
+    _delay_oled (100);
     
     OLED_init ();
 
@@ -102,11 +102,11 @@ char SSD1306_Putc(char ch, FontDef_t* Font, SSD1306_COLOR_t color)
             {
                 if ((b << j) & 0x8000)
                 {
-                    SSD1306_DrawPixel((SSD1306.CurrentX + j), (SSD1306.CurrentY + i), (SSD1306_COLOR_t) color);
+                    SSD1306_DrawPixel((SSD1306.CurrentX + j), (SSD1306.CurrentY + i), color);
                 } 
                 else 
                 {
-                    SSD1306_DrawPixel((SSD1306.CurrentX + j), (SSD1306.CurrentY + i), (SSD1306_COLOR_t)!color);
+                    SSD1306_DrawPixel((SSD1306.CurrentX + j), (SSD1306.CurrentY + i), !color);
                 }
             }
         }
@@ -122,11 +122,14 @@ char SSD1306_Putc(char ch, FontDef_t* Font, SSD1306_COLOR_t color)
     return 1;
 }
 
-char SSD1306_Puts(char* str, FontDef_t* Font, SSD1306_COLOR_t color)
+char SSD1306_Puts(char* str, FontDef_t* Font, SSD1306_ALIGN_t align, SSD1306_COLOR_t color)
 {   
     CodingCP866 (str);
+
+    _Align_text ((strlen(str) * Font->FontWidth), align);
+    
     /* Write characters */
-    while (*str) 
+    while (*str)
     {
         /* Write character by character */
         if (SSD1306_Putc(*str, Font, color) != *str)
@@ -148,7 +151,7 @@ char SSD1306_Puts(char* str, FontDef_t* Font, SSD1306_COLOR_t color)
   * @param  color: цвет отображаемого числа 
   * @retval None
   */
-void SSD1306_Putn (uint32_t num_in, FontDef_t* Font, SSD1306_COLOR_t color)
+void SSD1306_Putn (uint32_t num_in, FontDef_t* Font, SSD1306_ALIGN_t align, SSD1306_COLOR_t color)
 {
     char buf_num [12] = {'\0'};
     uint8_t count_buf = 0;
@@ -171,7 +174,40 @@ void SSD1306_Putn (uint32_t num_in, FontDef_t* Font, SSD1306_COLOR_t color)
             num_var = num_var / num_div;
     }
 
-    SSD1306_Puts (buf_num, Font, color);
+    SSD1306_Puts (buf_num, Font, align, color);
+}
+
+uint8_t _Align_text (uint8_t width_num, SSD1306_ALIGN_t align)
+{
+    uint8_t var_width = 0;
+    switch (align)
+    {
+        case SSD1306_ALIGN_CENTER_P:
+            var_width = (width_num >> 1);
+            if (CHECK_XY (SSD1306.CurrentX+var_width, SSD1306.CurrentY))
+            {
+                if (SSD1306_set_XY(SSD1306.CurrentX-var_width, SSD1306.CurrentY))
+                    SSD1306_set_XY(0, SSD1306.CurrentY);
+
+                break;  // относится к ближайшему оператору do, for, switch или while
+            }
+        
+        case SSD1306_ALIGN_RIGHT:
+            if (SSD1306_set_XY(SSD1306.CurrentX-width_num, SSD1306.CurrentY))
+                SSD1306_set_XY(0, SSD1306.CurrentY);
+        break;
+
+        case SSD1306_ALIGN_CENTER_S:
+            if (SSD1306_set_XY((SSD1306_WIDTH >> 1) - (width_num >> 1), SSD1306.CurrentY))
+                SSD1306_set_XY(0, SSD1306.CurrentY);
+        break;
+    
+        default:
+        break;
+    }
+
+    /* No error */
+    return 0;
 }
 
 /**
