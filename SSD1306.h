@@ -14,8 +14,22 @@
     #define ABS(x)   ((x) > 0 ? (x) : -(x))
 #endif
 
+#define SSD1306_SWAP(x, y) (((x) ^= (y)), ((y) ^= (x)), ((x) ^= (y)))
+
+#define SSD1306_OPPOSITE_COLOR(x) (x != SSD1306_COLOR_BLACK ? SSD1306_COLOR_BLACK : SSD1306_COLOR_WHITE)
+
 /* bufer of data screen */
 uint8_t SSD1306_Buffer [SSD1306_buf_size];
+
+/**
+ * @brief  SSD1306 Inversion enumeration
+ */
+typedef enum {
+	SSD1306_INVERSION_OFF = 0x00,		/* Inversion off */
+	SSD1306_INVERSION_ON = 0xFF,		/* Inversion on  */
+
+	SSD1306_INVERSION_ERROR = -0x01
+} SSD1306_INVERSION_t;
 
 /**
  * @brief  SSD1306 color enumeration
@@ -62,6 +76,8 @@ void SSD1306_Putn (uint32_t , FontDef_t* , SSD1306_ALIGN_t, SSD1306_COLOR_t );
 uint8_t _Align_text (uint8_t width_num, SSD1306_ALIGN_t align);
 
 char* CodingCP866(char* );
+
+void SSD1306_Invert_Screen (SSD1306_INVERSION_t);
 
 void SSD1306_Fill_Buffer (SSD1306_COLOR_t );
 

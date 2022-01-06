@@ -4,37 +4,37 @@
 
 #ifdef OLED_USE_SPI1
     #define SPI1_USE
-    #define SSD1306_ADDR_COLUMN_BIAS 0x00
+
+    #include "SSD1306_SPI_INIT.h"
+    #include "SSD1306_pins.h"
 #elif defined(OLED_USE_SPI2)
     #define SPI2_USE
-    #define SSD1306_ADDR_COLUMN_BIAS 0x00
+
+    #include "SSD1306_SPI_INIT.h"
+    #include "SSD1306_pins.h"
 #elif defined(OLED_USE_I2C1)
     #define I2C1_USE
-    #define SSD1306_ADDR_COLUMN_BIAS 0x02
+    #define SSD1306_ADDR_COLUMN_BIAS 0x02   // for OLED 1.6 inch with I2C need use bias
+
+    #include "SSD1306_I2C_INIT.h"
+    #include "SSD1306_pins.h"
 #else
     #error "Choose type interface for connection OLED" 
 #endif
 
-#if defined (SPI1_USE) || defined (SPI2_USE)
-    #include "SSD1306_SPI_INIT.h"
+#ifndef SSD1306_ADDR_COLUMN_BIAS
+    #define SSD1306_ADDR_COLUMN_BIAS 0x00
 #endif
-
-#if defined (I2C1_USE)
-    #include "SSD1306_I2C_INIT.h"
-#endif
-
-#include "SSD1306_pins.h"
 
 #define CHECK_XY(x,y) ((SSD1306_WIDTH > x) && (SSD1306_HEIGHT > y))
-
-#define SSD1306_SWAP(x, y) (((x) ^= (y)), ((y) ^= (x)), ((x) ^= (y)))
 
 /* Private SSD1306 structure */
 static struct {
 	uint8_t CurrentX;
 	uint8_t CurrentY;
-	uint8_t Inverted;
 	uint8_t Initialized;
+
+    SSD1306_INVERSION_t Inversion;
 } SSD1306;
 
 void _delay_oled (uint32_t count)
@@ -67,6 +67,9 @@ void SSD1306_INIT (void)
     /* Set default values */
     SSD1306.CurrentX = 0;
     SSD1306.CurrentY = 0;
+
+    /* Set normal stage (not inverted) */
+    SSD1306.Inversion = SSD1306_INVERSION_OFF;
 
     /* Initialized OK */
     SSD1306.Initialized = 1;
@@ -101,13 +104,9 @@ char SSD1306_Putc(char ch, FontDef_t* Font, SSD1306_COLOR_t color)
             for (uint8_t j = 0; j < Font->FontWidth; j++)
             {
                 if ((b << j) & 0x8000)
-                {
                     SSD1306_DrawPixel((SSD1306.CurrentX + j), (SSD1306.CurrentY + i), color);
-                } 
                 else 
-                {
-                    SSD1306_DrawPixel((SSD1306.CurrentX + j), (SSD1306.CurrentY + i), !color);
-                }
+                    SSD1306_DrawPixel((SSD1306.CurrentX + j), (SSD1306.CurrentY + i), SSD1306_OPPOSITE_COLOR(color));
             }
         }
 
@@ -221,11 +220,14 @@ uint8_t SSD1306_DrawPixel (uint8_t x, uint8_t y, SSD1306_COLOR_t color)
 {
     if (CHECK_XY(x,y))
     {
+        if (SSD1306.Inversion == SSD1306_INVERSION_ON)
+            color = SSD1306_OPPOSITE_COLOR(color);
+
         /* Set color */
         if (color) 
-            SSD1306_Buffer[x + ((y / 8) * SSD1306_WIDTH)] |=  (1 << (y % 8));
+            SSD1306_Buffer[x + ((y / 8) * SSD1306_WIDTH)] |=  ((uint8_t)1 << (y % 8));
         else
-            SSD1306_Buffer[x + ((y / 8) * SSD1306_WIDTH)] &= ~(1 << (y % 8));
+            SSD1306_Buffer[x + ((y / 8) * SSD1306_WIDTH)] &= ~((uint8_t)1 << (y % 8));
 
         return 0;
     }
@@ -338,20 +340,36 @@ void SSD1306_FillImage(uint8_t x, uint8_t y, uint8_t width, uint8_t height, cons
 
     if(ii+x > width) ii = 0;
 
-    if((x >= SSD1306_WIDTH) || (y >= SSD1306_HEIGHT)) return;
-
-    for(uint8_t row = 0; row < height; row++)
+    if (CHECK_XY(x,y))
     {
-        for(uint8_t col = 0; col < width; col++)
+        for(uint8_t row = 0; row < height; row++)
         {
-            SSD1306_DrawPixel(x + col, y + row, ((data[i] & (0x80 >> nbit++)) ? SSD1306_COLOR_BLACK : SSD1306_COLOR_WHITE));
-            if(nbit == 8)
+            for(uint8_t col = 0; col < width; col++)
             {
-                i++;
-                nbit = 0;
-                if(i >= size) return;
+                SSD1306_DrawPixel(x + col, y + row, ((data[i] & (0x80 >> nbit++)) ? SSD1306_COLOR_BLACK : SSD1306_COLOR_WHITE));
+                if(nbit == 8)
+                {
+                    i++;
+                    nbit = 0;
+                    if(i >= size) return;
+                }
             }
         }
+    }
+}
+
+void SSD1306_Invert_Screen (SSD1306_INVERSION_t inversion_state)
+{
+    if (SSD1306.Inversion != inversion_state)
+    {
+        SSD1306.Inversion = inversion_state;
+
+        for (uint16_t i = 0; i < SSD1306_buf_size; i++)
+        {
+            SSD1306_Buffer[i] ^= (uint8_t)0x00;
+        }
+
+        SSD1306_UpdateScreen ();
     }
 }
 
@@ -362,22 +380,14 @@ void SSD1306_FillImage(uint8_t x, uint8_t y, uint8_t width, uint8_t height, cons
   */
 void SSD1306_Fill_Buffer (SSD1306_COLOR_t color)
 {
+    if (SSD1306.Inversion == SSD1306_INVERSION_ON)
+        color = SSD1306_OPPOSITE_COLOR(color);
+
     /* Set memory */
     for(int i = 0; i < SSD1306_buf_size; i++)
     {
         SSD1306_Buffer[i] = color;
     }
-}
-
-/**
-  * @brief  заполнение экрана выбранным цветом (заполняет буффер и обновляет экран)
-  * @param  color: цвет отображаемого числа: SSD1306_COLOR_BLACK or SSD1306_COLOR_WHITE
-  * @retval None
-  */
-void SSD1306_Fill_Screen (SSD1306_COLOR_t color)
-{
-    SSD1306_Fill_Buffer ( color );
-    SSD1306_UpdateScreen ();
 }
 
 /**
@@ -398,6 +408,17 @@ void SSD1306_UpdateScreen (void)
         /* Запись потока данных из буфера на выбранную страницу */
         OLED_WRITE_BUFFER (&SSD1306_Buffer[SSD1306_WIDTH * m], SSD1306_WIDTH);
     }
+}
+
+/**
+  * @brief  заполнение экрана выбранным цветом (заполняет буффер и обновляет экран)
+  * @param  color: цвет отображаемого числа: SSD1306_COLOR_BLACK or SSD1306_COLOR_WHITE
+  * @retval None
+  */
+void SSD1306_Fill_Screen (SSD1306_COLOR_t color)
+{
+    SSD1306_Fill_Buffer ( color );
+    SSD1306_UpdateScreen ();
 }
 
 /**
