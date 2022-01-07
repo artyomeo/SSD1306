@@ -1,8 +1,17 @@
-/* This library was based on the developments of the following authors:
+/**
+ * @file SSD1306.h
+ * @author Egorov Artem (artyomeo@gmail.com)
+ * @brief 
+ * @version 2.1
+ * @date 2022-01-07
+ * 
+ * @copyright Copyright (c) 2022
+ * This library was based on the developments of the following authors:
  * original author:  Tilen Majerle<tilen@majerle.eu>
  * modification for STM32f10x: Alexander Lutsai<s.lyra@ya.ru>
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include "fonts.h"
@@ -55,6 +64,16 @@ typedef enum {
 	SSD1306_ALIGN_ERROR    = -0x01
 } SSD1306_ALIGN_t;
 
+/**
+ * @brief  SSD1306 change display the image on the screen
+ */
+typedef enum {
+	SSD1306_IMAGE_NORM     = 0x00,	/* the image is drawn normally and does not change  */
+	SSD1306_IMAGE_MIRROR_V = 0x07,	/* the image is mirrored along a vertical line		*/
+
+	SSD1306_IMAGE_ERROR    = -0x01
+} SSD1306_IMAGE_t;
+
 void SSD1306_INIT (void);
 
 void SSD1306_UpdateScreen (void);
@@ -97,7 +116,7 @@ uint8_t SSD1306_DrawRectangle (uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, u
 
 uint8_t SSD1306_DrawFillRectangle (uint8_t , uint8_t , uint8_t , uint8_t , SSD1306_COLOR_t );
 
-void SSD1306_FillImage(uint8_t , uint8_t , uint8_t , uint8_t , const uint8_t * , uint32_t );
+uint8_t SSD1306_FillImage (uint8_t x, uint8_t y, const uint8_t *data, SSD1306_IMAGE_t display, SSD1306_COLOR_t color);
 
 void OLED_init (void);
 

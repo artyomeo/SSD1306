@@ -1,3 +1,16 @@
+/**
+ * @file SSD1306.c
+ * @author Egorov Artem (artyomeo@gmail.com)
+ * @brief 
+ * @version 2.1
+ * @date 2022-01-07
+ * 
+ * @copyright Copyright (c) 2022
+ * This library was based on the developments of the following authors:
+ * original author:  Tilen Majerle<tilen@majerle.eu>
+ * modification for STM32f10x: Alexander Lutsai<s.lyra@ya.ru>
+ */
+
 #include "SSD1306.h"
 
 #define OLED_USE_SPI1
@@ -176,13 +189,20 @@ void SSD1306_Putn (uint32_t num_in, FontDef_t* Font, SSD1306_ALIGN_t align, SSD1
     SSD1306_Puts (buf_num, Font, align, color);
 }
 
-uint8_t _Align_text (uint8_t width_num, SSD1306_ALIGN_t align)
+/**
+  * @brief  ДЛЯ ВНУТРЕННЕГО ПОЛЬЗОВАНИЯ!!!
+  *         Функция выравнивания текста относительно заданной точки
+  * @param  width_text: ширина отображаемного текста в пикселях
+  * @param  align: параметр выравнивания текста (см. typedef enum SSD1306_ALIGN_t)
+  * @retval uint8_t: 0 - успешно, 1 - ошибка
+  */
+uint8_t _Align_text (uint8_t width_text, SSD1306_ALIGN_t align)
 {
     uint8_t var_width = 0;
     switch (align)
     {
         case SSD1306_ALIGN_CENTER_P:
-            var_width = (width_num >> 1);
+            var_width = (width_text >> 1);
             if (CHECK_XY (SSD1306.CurrentX+var_width, SSD1306.CurrentY))
             {
                 if (SSD1306_set_XY(SSD1306.CurrentX-var_width, SSD1306.CurrentY))
@@ -192,17 +212,16 @@ uint8_t _Align_text (uint8_t width_num, SSD1306_ALIGN_t align)
             }
         
         case SSD1306_ALIGN_RIGHT:
-            if (SSD1306_set_XY(SSD1306.CurrentX-width_num, SSD1306.CurrentY))
+            if (SSD1306_set_XY(SSD1306.CurrentX-width_text, SSD1306.CurrentY))
                 SSD1306_set_XY(0, SSD1306.CurrentY);
         break;
 
         case SSD1306_ALIGN_CENTER_S:
-            if (SSD1306_set_XY((SSD1306_WIDTH >> 1) - (width_num >> 1), SSD1306.CurrentY))
+            if (SSD1306_set_XY((SSD1306_WIDTH >> 1) - (width_text >> 1), SSD1306.CurrentY))
                 SSD1306_set_XY(0, SSD1306.CurrentY);
         break;
     
-        default:
-        break;
+        default:    break;
     }
 
     /* No error */
@@ -332,13 +351,28 @@ uint8_t SSD1306_DrawFillRectangle (uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y
     return 1;
 }
 
-void SSD1306_FillImage(uint8_t x, uint8_t y, uint8_t width, uint8_t height, const uint8_t * data, uint32_t size)
+/**
+  * @brief  Отрисовка изображения по указанном массиву данных. Формат изображения с которым работает эта функция:
+  *         1 байт - ширина (Width) изображения в битах
+  *         2 байт - высота (Height) изображения в битах
+  *         Изображение преобразуется в массив по 8 бит с левого верхнего угла слева направо, сверху вниз
+  * @example SSD1306_FillImage (0, 0, turtle_v2, SSD1306_IMAGE_NORM, SSD1306_COLOR_WHITE);
+  * @param  x: координата точки изображения верхнего левого угла по оси Х (0 <= x <= (SSD1306_WIDTH - 1))
+  * @param  y: координата точки изображения верхнего левого угла по оси Y (0 <= y <= (SSD1306_HEIGHT - 1))
+  * @param  data: указатель на массив данных, который хранит данные изображение
+  * @param  display: параметр отображения изображения (см. typedef enum SSD1306_IMAGE_t)
+  * @param  color: цвет пикселя со значением "1": SSD1306_COLOR_BLACK or SSD1306_COLOR_WHITE
+  * @retval uint8_t: 0 - успешно, 1 - ошибка
+  */
+uint8_t SSD1306_FillImage (uint8_t x, uint8_t y, const uint8_t *data, SSD1306_IMAGE_t display, SSD1306_COLOR_t color)
 {
-    uint32_t i = 0;
-    uint8_t nbit = 0;
-    uint32_t ii = sizeof(*data);
+    uint8_t width = *(data++);
+    uint8_t height = *(data++);
 
-    if(ii+x > width) ii = 0;
+    uint16_t bit_cnt = 0;
+
+    if (display == SSD1306_IMAGE_MIRROR_V)
+        x = x + width;
 
     if (CHECK_XY(x,y))
     {
@@ -346,16 +380,21 @@ void SSD1306_FillImage(uint8_t x, uint8_t y, uint8_t width, uint8_t height, cons
         {
             for(uint8_t col = 0; col < width; col++)
             {
-                SSD1306_DrawPixel(x + col, y + row, ((data[i] & (0x80 >> nbit++)) ? SSD1306_COLOR_BLACK : SSD1306_COLOR_WHITE));
-                if(nbit == 8)
-                {
-                    i++;
-                    nbit = 0;
-                    if(i >= size) return;
-                }
+                //на память :) SSD1306_DrawPixel(x - col, y + row, ((data[bit_cnt >> 3] & ((uint8_t)0x80 >> (bit_cnt & 0x07))) ? SSD1306_COLOR_BLACK : SSD1306_COLOR_WHITE));
+                if (display == SSD1306_IMAGE_NORM)
+                    SSD1306_DrawPixel(x + col, y + row, ((data[bit_cnt >> 3] & ((uint8_t)0x80 >> (bit_cnt & 0x07))) ? color : SSD1306_OPPOSITE_COLOR(color)));
+                else if (display == SSD1306_IMAGE_MIRROR_V)
+                    SSD1306_DrawPixel(x - col, y + row, ((data[bit_cnt >> 3] & ((uint8_t)0x80 >> (bit_cnt & 0x07))) ? color : SSD1306_OPPOSITE_COLOR(color)));
+
+                bit_cnt++;
             }
         }
+
+        return 0;
     }
+
+    /* Error */
+    return 1;
 }
 
 void SSD1306_Invert_Screen (SSD1306_INVERSION_t inversion_state)
